@@ -164,125 +164,90 @@ def past_predict(_user_id, _request_id, _from_date, _to_date, _currency_id, _int
     # print(pytz.all_timezones)
 
     delta = _to_date - _from_date
+    error_bool = True
+    error_msg = "Success: result saved"
 
-    for i in _interval_list:
-        for d in range(delta.days):
-            for h in range(24):
-                minute = 0
-                for m in range(int(60 / i)):
-                    minute += i
-                    # print('from date', _from_date, "to date", _to_date,
-                    #       "day", d, "hour", h, "mminute", minute, m, "i", i)
-                    og_df = get_data_mt5(_currency_id, i, _from_date, _from_date +
-                                         timedelta(days=d, hours=h, minutes=minute), h, minute)
-                    for j in all_loaded_models:
-                        if int(j[-1]) == i:
-                            models = j
+    try:
+        for i in _interval_list:
+            for d in range(delta.days):
+                for h in range(24):
+                    minute = 0
+                    for m in range(int(60 / i)):
+                        minute += i
+                        # print('from date', _from_date, "to date", _to_date,
+                        #       "day", d, "hour", h, "mminute", minute, m, "i", i)
+                        og_df = get_data_mt5(_currency_id, i, _from_date, _from_date +
+                                            timedelta(days=d, hours=h, minutes=minute), h, minute)
+                        for j in all_loaded_models:
+                            if int(j[-1]) == i:
+                                models = j
 
-                    # print(og_df.tail())
+                        # print(og_df.tail())
 
-                    high_model = models[0]
-                    low_model = models[1]
+                        high_model = models[0]
+                        low_model = models[1]
 
-                    if og_df is not None and len(og_df) != 0:
-                        train_dates = og_df['time']
-                        # print('train_dates', train_dates.values[-1])
-                        from_date = pd.to_datetime(
-                            train_dates.values[-1]) + timedelta(minutes=i)
-                        # print("single from date", from_date)
-                        forecast_period_dates = pd.date_range(
-                            from_date, periods=N_FUTURE, freq=str(f'{i}Min')).tolist()
-                        # print("forecase period dates", forecast_period_dates)
+                        if og_df is not None and len(og_df) != 0:
+                            train_dates = og_df['time']
+                            # print('train_dates', train_dates.values[-1])
+                            from_date = pd.to_datetime(
+                                train_dates.values[-1]) + timedelta(minutes=i)
+                            # print("single from date", from_date)
+                            forecast_period_dates = pd.date_range(
+                                from_date, periods=N_FUTURE, freq=str(f'{i}Min')).tolist()
+                            # print("forecase period dates", forecast_period_dates)
 
-                        train_set = og_df[cols].astype(float)
-                        scaled_data = sc.fit_transform(train_set)
-                        x_train = []
+                            train_set = og_df[cols].astype(float)
+                            scaled_data = sc.fit_transform(train_set)
+                            x_train = []
 
-                        for x in range(N_PAST, len(scaled_data) - N_FUTURE + 1):
-                            x_train.append(
-                                scaled_data[x + 1 - N_PAST:x + 1, 0:scaled_data.shape[1]])
+                            for x in range(N_PAST, len(scaled_data) - N_FUTURE + 1):
+                                x_train.append(
+                                    scaled_data[x + 1 - N_PAST:x + 1, 0:scaled_data.shape[1]])
 
-                        x_train = np.array(x_train)
+                            x_train = np.array(x_train)
 
-                        high_df_forecast = get_forecast_df(
-                            high_model, x_train, 0, 'high', train_set, sc, forecast_period_dates)
-                        low_df_forecast = get_forecast_df(
-                            low_model, x_train, 1, 'low', train_set, sc, forecast_period_dates)
+                            high_df_forecast = get_forecast_df(
+                                high_model, x_train, 0, 'high', train_set, sc, forecast_period_dates)
+                            low_df_forecast = get_forecast_df(
+                                low_model, x_train, 1, 'low', train_set, sc, forecast_period_dates)
 
-                        # print(high_df_forecast)
-                        # print(low_df_forecast)
+                            # print(high_df_forecast)
+                            # print(low_df_forecast)
 
-                        # print(not high_df_forecast.empty, not low_df_forecast.empty)
+                            # print(not high_df_forecast.empty, not low_df_forecast.empty)
 
-                        if not high_df_forecast.empty and not low_df_forecast.empty:
-                            # if og_df['time'].values[-1] <= high_df_forecast['time'].values[-1]:
-                            current_time = pd.to_datetime(
-                                og_df['time'].values[-1]).tz_localize('Asia/Kolkata').isoformat()
-                            # current_time = pd.to_datetime(
-                            #     og_df['time'].values[-1])
-                            high_value = np.float32(
-                                og_df['high'].values[-1]).item()
-                            low_value = np.float32(
-                                og_df['low'].values[-1]).item()
-                            predicted_high_value = np.float32(
-                                high_df_forecast['high'].values[-1]).item()
-                            predicted_low_value = np.float32(
-                                low_df_forecast['low'].values[-1]).item()
-                            target_time = pd.to_datetime(
-                                high_df_forecast['time'].values[-1]).tz_localize('Asia/Kolkata').isoformat()
+                            if not high_df_forecast.empty and not low_df_forecast.empty:
+                                # if og_df['time'].values[-1] <= high_df_forecast['time'].values[-1]:
+                                current_time = pd.to_datetime(
+                                    og_df['time'].values[-1]).tz_localize('Asia/Kolkata').isoformat()
+                                # current_time = pd.to_datetime(
+                                #     og_df['time'].values[-1])
+                                high_value = np.float32(
+                                    og_df['high'].values[-1]).item()
+                                low_value = np.float32(
+                                    og_df['low'].values[-1]).item()
+                                predicted_high_value = np.float32(
+                                    high_df_forecast['high'].values[-1]).item()
+                                predicted_low_value = np.float32(
+                                    low_df_forecast['low'].values[-1]).item()
+                                target_time = pd.to_datetime(
+                                    high_df_forecast['time'].values[-1]).tz_localize('Asia/Kolkata').isoformat()
 
-                            # print(f'{_from_date + timedelta(hours=h, minutes=minute - i)} {high_value} {low_value} {predicted_high_value} {predicted_low_value} {target_time} {i}Min')
-                            # writer.writerow([_from_date + timedelta(hours=h, minutes=i - i), high_value, low_value, predicted_high_value, predicted_low_value, target_time, str(i)+"Min"])
-                            print(
-                                f'{current_time} {high_value} {low_value} {predicted_high_value} {predicted_low_value} {target_time} {i}Min')
-                            # writer.writerow(
-                            #     [current_time, high_value, low_value, predicted_high_value, predicted_low_value, target_time, str(i)+"Min"])
-                            ReportHistoryPrediction.objects.create(request_id=_request_id, currency=_currency_id, interval=_interval_list,
-                                                                   prediction_high=predicted_high_value, prediction_low=predicted_low_value, target_datetime=target_time)
-                            # print()
+                                # print(f'{_from_date + timedelta(hours=h, minutes=minute - i)} {high_value} {low_value} {predicted_high_value} {predicted_low_value} {target_time} {i}Min')
+                                # writer.writerow([_from_date + timedelta(hours=h, minutes=i - i), high_value, low_value, predicted_high_value, predicted_low_value, target_time, str(i)+"Min"])
+                                print(
+                                    f'{current_time} {high_value} {low_value} {predicted_high_value} {predicted_low_value} {target_time} {i}Min')
+                                # writer.writerow(
+                                #     [current_time, high_value, low_value, predicted_high_value, predicted_low_value, target_time, str(i)+"Min"])
+                                ReportHistoryPrediction.objects.create(request_id=_request_id, currency=_currency_id, interval=i,
+                                                                    prediction_high=predicted_high_value, prediction_low=predicted_low_value, target_datetime=target_time)
+                                # print()
+    
+    except Exception as e:
+        error_bool = False
+        error_msg = e
+        ReportStatus.objects.filter(request_id=_request_id).update(status='1', comment=f'{e}')
 
     print("FINISHED")
-
-    # while True:
-    #     utc_time = _from_date
-    #     utc_day_name = utc_time.strftime('%a')
-
-    #     if utc_day_name != 'Sat' and utc_day_name != 'Sun':
-    #         for i in _interval_list:
-    #             og_df = get_data_mt5(_currency_id, i, _from_date, _to_date)
-    #             for j in all_loaded_models:
-    #                 if int(j[-1]) == i:
-    #                     models = j
-
-    #             high_model = models[0]
-    #             low_model = models[1]
-
-    #             if og_df is not None and len(og_df) != 0:
-    #                 train_dates = og_df['time']
-    #                 from_date = pd.to_datetime(train_dates.values[-1]) + timedelta(minutes=i)
-    #                 # print(train_dates, from_date)
-    #                 forecast_period_dates = pd.date_range(from_date, periods=N_FUTURE, freq=str(f'{i}Min')).tolist()
-
-    #                 train_set = og_df[cols].astype(float)
-    #                 scaled_data = sc.fit_transform(train_set)
-    #                 x_train = []
-
-    #                 for x in range(N_PAST, len(scaled_data) - N_FUTURE + 1):
-    #                     x_train.append(scaled_data[x + 1 - N_PAST:x + 1, 0:scaled_data.shape[1]])
-
-    #                 x_train = np.array(x_train)
-
-    #                 high_df_forecast = get_forecast_df(high_model, x_train, 0, 'high', train_set, sc, forecast_period_dates)
-    #                 low_df_forecast = get_forecast_df(low_model, x_train, 1, 'low', train_set, sc, forecast_period_dates)
-
-    #                 if not high_df_forecast.empty and not low_df_forecast.empty:
-    #                     if og_df['time'].values[-1] <= high_df_forecast['time'].values[-1]:
-    #                         current_time = pd.to_datetime(og_df['time'].values[-1])
-    #                         high_value = np.float32(og_df['high'].values[-1]).item()
-    #                         low_value = np.float32(og_df['low'].values[-1]).item()
-    #                         predicted_high_value = np.float32(high_df_forecast['high'].values[-1]).item()
-    #                         predicted_low_value = np.float32(low_df_forecast['low'].values[-1]).item()
-    #                         target_time = pd.to_datetime(high_df_forecast['time'].values[-1])
-
-    #                         print(f'{current_time} {high_value} {low_value} {predicted_high_value} {predicted_low_value} {target_time} {i}Min')
-    #                         writer.writerow([current_time, high_value, low_value, predicted_high_value, predicted_low_value, target_time, str(i)+"Min"])
+    return error_bool, error_msg

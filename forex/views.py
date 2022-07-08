@@ -23,8 +23,11 @@ def predict(request):
 
     ReportStatus.objects.create(request_id=request_id, status='0', comment='in process', user_id=user_id)
 
-    past_predict(user_id, request_id, from_date, to_date, currency_id, interval, model_id)
+    result, message = past_predict(user_id, request_id, from_date, to_date, currency_id, interval, model_id)
 
-    ReportStatus.objects.filter(request_id=request_id).update(status='1', comment='done')
-
-    return JsonResponse({'result': f'{user_id} {request_id} {from_date} {to_date} {currency_id} {interval} {model_id}'})
+    if result:
+        ReportStatus.objects.filter(request_id=request_id).update(status='1', comment='done')
+        return JsonResponse({'SUCCESS': f'{user_id} {request_id} {from_date} {to_date} {currency_id} {interval} {model_id} {message}'})
+    
+    else:
+        return JsonResponse({'FAILED': f'{user_id} {request_id} {from_date} {to_date} {currency_id} {interval} {model_id} {message}'})
